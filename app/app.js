@@ -18,7 +18,16 @@ angular
     $stateProvider
       .state('home', {
         url: '/',
-        templateUrl: 'home/home.html'
+        templateUrl: 'home/home.html',
+        resolve: {
+          requireNoAuth: function($state, Auth) {
+            return Auth.$requireSignIn().then(function() {
+              $state.go('channels');
+            }, function() {
+              return;
+            }) 
+          }
+        }
       })
       .state('login', {
         url: '/login',
@@ -67,13 +76,15 @@ angular
       })
       .state('channels', {
         url: '/channels',
+        controller: 'ChannelsCtrl as channelsCtrl',
+        templateUrl: 'channels/index.html',
         resolve: {
           channels: function(Channels) {
             return Channels.$loaded();
           },
           profile: function($state, Auth, Users) {
             return Auth.$requireSignIn().then(function(auth) {
-              return Users.getProfile(auth.uid).then(function(profile) {
+              return Users.getProfile(auth.uid).$loaded().then(function(profile) {
                 if(profile.displayName) {
                   return profile;
                 } else {
@@ -83,6 +94,24 @@ angular
             }, function(error) {
               $state.go('home');
             });
+          }
+        }
+      })
+      .state('channels.create', {
+        url: '/create',
+        templateUrl: 'channels/create.html',
+        controller: 'ChannelsCtrl as channelsCtrl'
+      })
+      .state('channels.messages', {
+        url: '/{channelId}/messages',
+        templateUrl: 'channels/messages.html',
+        controller: 'MessagesCtrl as messagesCtrl',
+        resolve: {
+          messages: function($stateParams, Messages) {
+            return Messages.forChannel($stateParams.channelId).$loaded();
+          },
+          channelName: function($stateParams, channels) {
+            return '#'+channels.$getRecord($stateParams.channelId).name;
           }
         }
       });
